@@ -204,6 +204,7 @@ from prommis.solvent_extraction.solvent_extraction import (
 )
 from prommis.uky.costing.costing_dictionaries import load_REE_costing_dictionary
 from prommis.uky.costing.ree_plant_capcost import QGESSCosting, QGESSCostingData
+import pyomo.environ as pyo
 
 _log = idaeslog.getLogger(__name__)
 
@@ -2694,6 +2695,7 @@ def add_costing(m):
         "nonhazardous_precipitate_waste",
         "dust_and_volatiles",
         "power",
+        "sulfuric_acid",
     ]
 
     rates = [
@@ -2701,7 +2703,17 @@ def add_costing(m):
         m.fs.precipitate,
         m.fs.dust_and_volatiles,
         m.fs.power,
+        {
+            0: (
+                m.fs.leach_liquid_feed.properties[0].conc_mass_comp['SO4']*m.fs.leach_liquid_feed.properties[0].flow_vol # mg/L * L/h
+                + m.fs.leach_liquid_feed.properties[0].conc_mass_comp['H']*m.fs.leach_liquid_feed.properties[0].flow_vol # mg/L * L/h
+            )
+        },
     ]
+
+    prices = {
+        "sulfuric_acid": 2.5*1e-6 * units.USD_2025 / units.mg, # 2.5 dollars per kg
+    }
 
     # define product flowrates
 
@@ -2883,6 +2895,7 @@ def add_costing(m):
         land_cost=m.fs.land_cost,
         resources=resources,
         rates=rates,
+        prices=prices,
         fixed_OM=True,
         variable_OM=True,
         feed_input=m.fs.feed_input,
